@@ -17,6 +17,16 @@ opencv2/highgui/highgui.hpp
 /home/cloud/darlarmar/Proiect_FIC/opencv2/highgui/highgui.hpp
 opencv2/opencv.hpp
 /home/cloud/darlarmar/Proiect_FIC/opencv2/opencv.hpp
+sys/socket.h
+-
+netinet/in.h
+-
+cstring
+-
+arpa/inet.h
+-
+unistd.h
+-
 
 /usr/local/include/opencv/cxcore.h
 opencv2/core/core_c.h
