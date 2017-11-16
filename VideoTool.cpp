@@ -11,6 +11,7 @@
 #include <cstring>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <cmath>
 #define PORT 20232
 
 using namespace std;
@@ -183,7 +184,57 @@ void trackFilteredObject(int &x, int &y, Mat threshold, Mat &cameraFeed) {
 	}
 }
 
-void sendInfo(char comenzi[])
+void sendCommand(char comenzi)
+{
+
+	struct sockaddr_in address;
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+
+    char buffer[1024] = {0};
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        printf("\n Socket creation error \n");
+        return;
+    }
+  
+    memset(&serv_addr, '0', sizeof(serv_addr));
+  
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+      
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if(inet_pton(AF_INET, "193.226.12.217", &serv_addr.sin_addr)<=0) 
+    {
+        printf("\nInvalid address/ Address not supported \n");
+        return;
+    }
+  
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+        printf("\nConnection Failed \n");
+        return;
+    }
+
+	
+	if((comenzi=='f')||(comenzi=='s')||(comenzi=='r')||(comenzi=='l')||(comenzi=='b'))
+	{
+	    send(sock , &comenzi , 1 , 0 );
+	}
+	
+    //send(sock , "s" , 1 , 0 );
+    //printf("Hello message sent\n");
+    //printf("%s\n",buffer );
+}
+
+void detectare_fata()
+{
+	sendCommand('f');
+	sleep(0.1);
+	sendCommand('s');
+}
+
+/*void sendInfo(char comenzi[])
 {
 	struct sockaddr_in address;
     int sock = 0, valread;
@@ -226,18 +277,19 @@ void sendInfo(char comenzi[])
     send(sock , "s" , 1 , 0 );
     printf("Hello message sent\n");
     printf("%s\n",buffer );
-}
+}*/
 int main(int argc, char* argv[])
 {
 
 
 	cout<<argv[1];
-	sendInfo(argv[1]);
+	//sendInfo(argv[1]);
     
 	//some boolean variables for different functionality within this
 	//program
 	bool trackObjects = true;
 	bool useMorphOps = true;
+	double distanta=0;
 
 	Point p;
 	//Matrix to store each frame of the webcam feed
@@ -280,7 +332,7 @@ int main(int argc, char* argv[])
 		//filter HSV image between values and store filtered image to
 		//threshold matrix
 
-		inRange(HSV, Scalar(H_MIN, 172, 16), Scalar(H_MAX, S_MAX, V_MAX), threshold);
+		inRange(HSV, Scalar(168, 60, 70), Scalar(H_MAX, S_MAX, V_MAX), threshold);
 		//perform morphological operations on thresholded image to eliminate noise
 		//and emphasize the filtered object(s)
 
@@ -291,18 +343,21 @@ int main(int argc, char* argv[])
 
 		trackFilteredObject(x, y, threshold, cameraFeed);
 
-		inRange(HSV, Scalar(171, S_MIN, V_MIN), Scalar(H_MAX, S_MAX, V_MAX), threshold);
+		inRange(HSV, Scalar(H_MIN, 79, 223), Scalar(91, S_MAX, V_MAX), threshold);
 		//perform morphological operations on thresholded image to eliminate noise
 		//and emphasize the filtered object(s)
 
-			morphOps(threshold);
+		morphOps(threshold);
 		//pass in thresholded frame to our object tracking function
 		//this function will return the x and y coordinates of the
 		//filtered object
 
-			trackFilteredObject(x2, y2, threshold, cameraFeed);
+		trackFilteredObject(x2, y2, threshold, cameraFeed);
 
+	
+		
 
+		
 		//show frames
 		imshow(windowName2, threshold);
 		imshow(windowName, cameraFeed);
@@ -311,6 +366,9 @@ int main(int argc, char* argv[])
 		//delay 30ms so that screen can refresh.
 		//image will not appear without this waitKey() command
 		waitKey(30);
+
+		distanta = sqrt(pow(x2-x, 2) + pow(y2-y, 2));
+		cout<<distanta;
 	}
 
 
