@@ -1,6 +1,7 @@
 #include <sstream>
 #include <string>
 #include <iostream>
+#include <cstdlib>
 //#include <opencv2\highgui.h>
 #include "opencv2/highgui/highgui.hpp"
 //#include <opencv2\cv.h>
@@ -16,6 +17,8 @@
 
 using namespace std;
 using namespace cv;
+
+float distanta_old, distanta;
 //initial min and max HSV filter values.
 //these will be changed using trackbars
 int H_MIN = 0;
@@ -24,6 +27,7 @@ int S_MIN = 0;
 int S_MAX = 256;
 int V_MIN = 0;
 int V_MAX = 256;
+int x_old, y_old, x2_old, y2_old;
 //default capture width and height
 const int FRAME_WIDTH = 640;
 const int FRAME_HEIGHT = 480;
@@ -38,7 +42,26 @@ const std::string windowName1 = "HSV Image";
 const std::string windowName2 = "Thresholded Image";
 const std::string windowName3 = "After Morphological Operations";
 const std::string trackbarWindowName = "Trackbars";
+//some boolean variables for different functionality within this
+	//program
+	bool trackObjects = true;
+	bool useMorphOps = true;
+	double distanta=0;
 
+	Point p;
+	//Matrix to store each frame of the webcam feed
+	Mat cameraFeed;
+	//matrix storage for HSV image
+	Mat HSV;
+	Mat HSV_yellow;
+	//matrix storage for binary threshold image
+	Mat threshold;
+	Mat treshold_yellow;
+	//x and y values for the location of the object
+	int x = 0, y = 0;
+	int x2=0, y2=0;
+	//video capture object to acquire webcam feed
+	VideoCapture capture;
 
 void on_mouse(int e, int x, int y, int d, void *ptr)
 {
@@ -184,57 +207,7 @@ void trackFilteredObject(int &x, int &y, Mat threshold, Mat &cameraFeed) {
 	}
 }
 
-void sendCommand(char comenzi)
-{
-
-	struct sockaddr_in address;
-    int sock = 0, valread;
-    struct sockaddr_in serv_addr;
-
-    char buffer[1024] = {0};
-    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-    {
-        printf("\n Socket creation error \n");
-        return;
-    }
-  
-    memset(&serv_addr, '0', sizeof(serv_addr));
-  
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(PORT);
-      
-    // Convert IPv4 and IPv6 addresses from text to binary form
-    if(inet_pton(AF_INET, "193.226.12.217", &serv_addr.sin_addr)<=0) 
-    {
-        printf("\nInvalid address/ Address not supported \n");
-        return;
-    }
-  
-    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
-    {
-        printf("\nConnection Failed \n");
-        return;
-    }
-
-	
-	if((comenzi=='f')||(comenzi=='s')||(comenzi=='r')||(comenzi=='l')||(comenzi=='b'))
-	{
-	    send(sock , &comenzi , 1 , 0 );
-	}
-	
-    //send(sock , "s" , 1 , 0 );
-    //printf("Hello message sent\n");
-    //printf("%s\n",buffer );
-}
-
-void detectare_fata()
-{
-	sendCommand('f');
-	sleep(0.1);
-	sendCommand('s');
-}
-
-/*void sendInfo(char comenzi[])
+void sendInfo(char comenzi[])
 {
 	struct sockaddr_in address;
     int sock = 0, valread;
@@ -270,57 +243,16 @@ void detectare_fata()
 	if((comenzi[i]=='f')||(comenzi[i]=='s')||(comenzi[i]=='r')||(comenzi[i]=='l')||(comenzi[i]=='b'))
 	{
 	    send(sock , &comenzi[i] , 1 , 0 );
-		sleep(2);
+		sleep(0.2);
 	}
 
 	}
-    send(sock , "s" , 1 , 0 );
-    printf("Hello message sent\n");
-    printf("%s\n",buffer );
-}*/
-int main(int argc, char* argv[])
+
+ 
+}
+
+void preiaCoordonate()
 {
-
-
-	cout<<argv[1];
-	//sendInfo(argv[1]);
-    
-	//some boolean variables for different functionality within this
-	//program
-	bool trackObjects = true;
-	bool useMorphOps = true;
-	double distanta=0;
-
-	Point p;
-	//Matrix to store each frame of the webcam feed
-	Mat cameraFeed;
-	//matrix storage for HSV image
-	Mat HSV;
-	Mat HSV_yellow;
-	//matrix storage for binary threshold image
-	Mat threshold;
-	Mat treshold_yellow;
-	//x and y values for the location of the object
-	int x = 0, y = 0;
-	int x2=0, y2=0;
-	//create slider bars for HSV filtering
-	createTrackbars();
-	//video capture object to acquire webcam feed
-	VideoCapture capture;
-	//open capture object at location zero (default location for webcam)
-	capture.open("rtmp://172.16.254.99/live/nimic");
-	//set height and width of capture frame
-	capture.set(CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
-	capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
-	//start an infinite loop where webcam feed is copied to cameraFeed matrix
-	//all of our operations will be performed within this loop
-
-
-
-	
-	while (1) {
-
-
 		//store image to matrix
 		capture.read(cameraFeed);
 		//convert frame from BGR to HSV colorspace
@@ -353,11 +285,7 @@ int main(int argc, char* argv[])
 		//filtered object
 
 		trackFilteredObject(x2, y2, threshold, cameraFeed);
-
 	
-		
-
-		
 		//show frames
 		imshow(windowName2, threshold);
 		imshow(windowName, cameraFeed);
@@ -366,9 +294,166 @@ int main(int argc, char* argv[])
 		//delay 30ms so that screen can refresh.
 		//image will not appear without this waitKey() command
 		waitKey(30);
+}
 
-		distanta = sqrt(pow(x2-x, 2) + pow(y2-y, 2));
-		cout<<distanta;
+void urmareste()
+{
+	x_old=x;
+	y_old=y;
+	x2_old=x2;
+	y2_old=y2;
+	preiaCoordonate();
+	//stanga sus fata de adversar
+	if((x<x2)&&(y>y2))
+	{
+		//stanga sus fata de cat eram
+		if((x<x_old)&&(y>y_old))
+		{
+			sendInfo("rrrf");
+		}
+
+		//dreapta sus fata de cat eram
+		if((x>x_old)&&(y>y_old))
+		{
+			sendInfo("rrf");
+		}
+
+		//stanga jos fata de cat eram
+		if((x<x_old)&&(y<y_old))
+		{
+			sendInfo("llf");
+		}
+
+		//dreapta jos fata de cat eram
+		if((x>x_old)&&(y<y_old))
+		{
+			//suntem (relativ) pe directie
+			sendInfo("ff");
+		}
+	}
+
+	//dreapta sus fata de adversar
+	if((x>x2)&&(y>y2))
+	{
+		//dreapta sus fata de cat eram
+		if((x>x_old)&&(y>y_old))
+		{
+			sendInfo("rrrf");
+		}
+
+		//stanga sus fata de cat eram
+		if((x<x_old)&&(y>y_old))
+		{
+			sendInfo("lllf");
+		}
+
+		//dreapta jos fata de cat eram
+		if((x>x_old)&&(y<y_old))
+		{
+			sendInfo("rrf");
+		}
+
+		//stanga jos fata de cat eram
+		if((x<x_old)&&(y<y_old))
+		{
+			//suntem (relativ) pe directie
+			sendInfo("ff");
+		}
+	}
+
+	//stanga jos fata de adversar
+	if((x<x2)&&(y<y2))
+	{
+		//stanga sus fata de cat eram
+		if((x<x_old)&&(y>y_old))
+		{
+			sendInfo("rrf");
+		}
+
+		//stanga jos fata de cat eram
+		if((x<x_old)&&(y<y_old))
+		{
+			sendInfo("lllf");
+		}
+
+		//dreapta jos fata de cat eram
+		if((x>x_old)&&(y<y_old))
+		{
+			sendInfo("llf");
+		}
+
+		//dreapta sus fata de cat eram
+		if((x>x_old)&&(y>y_old))
+		{
+			//suntem (relativ) pe directie
+			sendInfo("ff");
+		}
+	}
+
+	//dreapta jos fata de adversar
+	if((x>x2)&&(y<y2))
+	{
+		//dreapta jos fata de cat eram
+		if((x>x_old)&&(y<y_old))
+		{
+			sendInfo("rrrf");
+		}
+
+		//dreapta sus fata de cat eram
+		if((x>x_old)&&(y>y_old))
+		{
+			sendInfo("lllf");
+		}
+
+		//stanga jos fata de cat eram
+		if((x<x_old)&&(y<y_old))
+		{
+			sendInfo("rrf");
+		}
+
+		//stanga sus fata de cat eram
+		if((x<x_old)&&(y>y_old))
+		{
+			//suntem (relativ) pe directie
+			sendInfo("ff");
+		}
+	}
+
+	preiaCoordonate();
+	if((x2==x2_old)&&(y2==y2_old))
+	{
+	sendInfo("s");
+	exit(0);
+	}
+	
+	
+	
+	
+}
+int main(int argc, char* argv[])
+{
+
+
+	//cout<<argv[1];
+	//sendInfo(argv[1]);
+    
+	
+	//create slider bars for HSV filtering
+	createTrackbars();
+	//open capture object at location zero (default location for webcam)
+	capture.open("rtmp://172.16.254.99/live/nimic");
+	//set height and width of capture frame
+	capture.set(CV_CAP_PROP_FRAME_WIDTH, FRAME_WIDTH);
+	capture.set(CV_CAP_PROP_FRAME_HEIGHT, FRAME_HEIGHT);
+	//start an infinite loop where webcam feed is copied to cameraFeed matrix
+	//all of our operations will be performed within this loop
+
+
+
+	preiaCoordonate();
+
+	while (1) {
+	urmareste();
 	}
 
 
